@@ -10,7 +10,7 @@ import {
   LogOut,
   RefreshCw,
   Search,
-  UserRound
+  UserRound,
 } from "lucide-react";
 import { categories } from "@/lib/categories";
 import { getCurrentUser, logoutAdmin, type AdminUser } from "@/lib/auth";
@@ -21,7 +21,7 @@ import {
   groupRowsBySession,
   type AnswerRow,
   type AnswerSession,
-  type CategoryResult
+  type CategoryResult,
 } from "@/lib/answers";
 import {
   contactTable,
@@ -29,7 +29,7 @@ import {
   formatContactHeader,
   formatContactValue,
   type ContactResult,
-  type ContactRow
+  type ContactRow,
 } from "@/lib/contact";
 
 const CONTACT_VIEW_ID = "contact-us";
@@ -38,7 +38,9 @@ export default function DashboardClient() {
   const router = useRouter();
   const [user, setUser] = useState<AdminUser | null>(null);
   const [results, setResults] = useState<CategoryResult[]>([]);
-  const [contactResult, setContactResult] = useState<ContactResult>({ rows: [] });
+  const [contactResult, setContactResult] = useState<ContactResult>({
+    rows: [],
+  });
   const [activeCategory, setActiveCategory] = useState(categories[0].id);
   const [activeView, setActiveView] = useState(categories[0].id);
   const [selectedSession, setSelectedSession] = useState<string>("");
@@ -49,7 +51,7 @@ export default function DashboardClient() {
     setIsLoading(true);
     const [nextResults, nextContactResult] = await Promise.all([
       fetchAllAnswers(),
-      fetchContactMessages()
+      fetchContactMessages(),
     ]);
     setResults(nextResults);
     setContactResult(nextContactResult);
@@ -81,12 +83,12 @@ export default function DashboardClient() {
 
   const activeResult = useMemo(
     () => results.find((result) => result.category.id === activeCategory),
-    [activeCategory, results]
+    [activeCategory, results],
   );
 
   const activeSessions = useMemo(
     () => groupRowsBySession(activeResult?.rows ?? []),
-    [activeResult]
+    [activeResult],
   );
 
   const filteredSessions = useMemo(() => {
@@ -96,24 +98,30 @@ export default function DashboardClient() {
     if (!normalizedQuery) return sessions;
 
     return sessions.filter((session) =>
-      JSON.stringify(session.rows).toLowerCase().includes(normalizedQuery)
+      JSON.stringify(session.rows).toLowerCase().includes(normalizedQuery),
     );
   }, [activeSessions, query]);
 
   const selectedSessionGroup = useMemo(() => {
     if (!filteredSessions.length) return null;
     return (
-      filteredSessions.find((session) => session.sessionId === selectedSession) ??
-      filteredSessions[0]
+      filteredSessions.find(
+        (session) => session.sessionId === selectedSession,
+      ) ?? filteredSessions[0]
     );
   }, [filteredSessions, selectedSession]);
 
-  const totalResponses = results.reduce((total, result) => total + result.rows.length, 0);
+  const totalResponses = results.reduce(
+    (total, result) => total + result.rows.length,
+    0,
+  );
   const totalSessions = results.reduce(
     (total, result) => total + groupRowsBySession(result.rows).length,
-    0
+    0,
   );
-  const categoriesWithData = results.filter((result) => result.rows.length > 0).length;
+  const categoriesWithData = results.filter(
+    (result) => result.rows.length > 0,
+  ).length;
   const isContactView = activeView === CONTACT_VIEW_ID;
 
   async function handleLogout() {
@@ -142,13 +150,18 @@ export default function DashboardClient() {
           {categories.map((category) => {
             const Icon = category.icon;
             const categoryRows =
-              results.find((result) => result.category.id === category.id)?.rows ?? [];
+              results.find((result) => result.category.id === category.id)
+                ?.rows ?? [];
             const count = groupRowsBySession(categoryRows).length;
 
             return (
               <button
                 key={category.id}
-                className={!isContactView && activeCategory === category.id ? "active" : ""}
+                className={
+                  !isContactView && activeCategory === category.id
+                    ? "active"
+                    : ""
+                }
                 onClick={() => {
                   setActiveView(category.id);
                   setActiveCategory(category.id);
@@ -183,8 +196,14 @@ export default function DashboardClient() {
       <section className="dashboard">
         <header className="topbar">
           <div>
-            <p className="eyebrow">{isContactView ? "Contact messages" : "Questionnaire answers"}</p>
-            <h1>{isContactView ? "Contact Us" : activeResult?.category.label ?? "Dashboard"}</h1>
+            <p className="eyebrow">
+              {isContactView ? "Contact messages" : "Questionnaire answers"}
+            </p>
+            <h1>
+              {isContactView
+                ? "Contact Us"
+                : (activeResult?.category.label ?? "Dashboard")}
+            </h1>
           </div>
           <div className="user-pill">
             <UserRound size={18} aria-hidden="true" />
@@ -192,20 +211,23 @@ export default function DashboardClient() {
           </div>
         </header>
 
-        <section className="metrics" aria-label="Dashboard metrics">
-          {isContactView ? (
+        <section
+          className={`${isContactView ? "hide_metrics" : "metrics"}`}
+          aria-label="Dashboard metrics"
+        >
+          {/* {isContactView ? (
             <>
               <Metric label="Contact messages" value={contactResult.rows.length} />
               <Metric label="Current table" value={contactTable} compact />
               <Metric label="Status" value={contactResult.error ? "Needs attention" : "Loaded"} compact />
             </>
-          ) : (
-            <>
-              <Metric label="Total sessions" value={totalSessions} />
-              <Metric label="Total answers" value={totalResponses} />
-              <Metric label="Categories with data" value={categoriesWithData} />
-            </>
-          )}
+          ) : ( */}
+          <>
+            <Metric label="Total sessions" value={totalSessions} />
+            <Metric label="Total answers" value={totalResponses} />
+            <Metric label="Categories with data" value={categoriesWithData} />
+          </>
+          {/* )} */}
         </section>
 
         {isContactView ? (
@@ -215,65 +237,84 @@ export default function DashboardClient() {
             onRefresh={loadDashboardData}
           />
         ) : (
-        <section className="workspace">
-          <div className="responses-panel">
-            <div className="panel-header">
-              <div>
-                <h2>Sessions</h2>
-                <p>{activeResult?.category.description}</p>
+          <section className="workspace">
+            <div className="responses-panel">
+              <div className="panel-header">
+                <div>
+                  <h2>Sessions</h2>
+                  <p>{activeResult?.category.description}</p>
+                </div>
+                <button
+                  className="icon-button"
+                  onClick={loadDashboardData}
+                  disabled={isLoading}
+                  title="Refresh answers"
+                >
+                  <RefreshCw size={18} aria-hidden="true" />
+                </button>
               </div>
-              <button className="icon-button" onClick={loadDashboardData} disabled={isLoading} title="Refresh answers">
-                <RefreshCw size={18} aria-hidden="true" />
-              </button>
-            </div>
 
-            <label className="search-field">
-              <Search size={18} aria-hidden="true" />
-              <input
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder="Search sessions and answers"
-              />
-            </label>
+              <label className="search-field">
+                <Search size={18} aria-hidden="true" />
+                <input
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder="Search sessions and answers"
+                />
+              </label>
 
-            {activeResult?.error ? (
-              <div className="notice error">
-                <AlertCircle size={18} aria-hidden="true" />
-                <span>{activeResult.error}</span>
-              </div>
-            ) : null}
-
-            <div className="session-list">
-              {isLoading ? <p className="empty-state">Loading questionnaire answers...</p> : null}
-              {!isLoading && !filteredSessions.length ? (
-                <p className="empty-state">No answers found for this category.</p>
+              {activeResult?.error ? (
+                <div className="notice error">
+                  <AlertCircle size={18} aria-hidden="true" />
+                  <span>{activeResult.error}</span>
+                </div>
               ) : null}
-              {filteredSessions.map((session) => {
-                return (
-                  <button
-                    key={session.sessionId}
-                    className={selectedSessionGroup?.sessionId === session.sessionId ? "selected" : ""}
-                    onClick={() => setSelectedSession(session.sessionId)}
-                  >
-                    {session.displayName ? (
-                      <span className="session-name">{session.displayName}</span>
-                    ) : null}
-                    <span>{session.sessionId}</span>
-                    <strong className="question-count">{session.rows.length} answers</strong>
-                    {session.submittedAt ? (
-                      <small>
-                        <CalendarClock size={14} aria-hidden="true" />
-                        {session.submittedAt}
-                      </small>
-                    ) : null}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
 
-          <AnswerDetail session={selectedSessionGroup} />
-        </section>
+              <div className="session-list">
+                {isLoading ? (
+                  <p className="empty-state">
+                    Loading questionnaire answers...
+                  </p>
+                ) : null}
+                {!isLoading && !filteredSessions.length ? (
+                  <p className="empty-state">
+                    No answers found for this category.
+                  </p>
+                ) : null}
+                {filteredSessions.map((session) => {
+                  return (
+                    <button
+                      key={session.sessionId}
+                      className={
+                        selectedSessionGroup?.sessionId === session.sessionId
+                          ? "selected"
+                          : ""
+                      }
+                      onClick={() => setSelectedSession(session.sessionId)}
+                    >
+                      {session.displayName ? (
+                        <span className="session-name">
+                          {session.displayName}
+                        </span>
+                      ) : null}
+                      <span>{session.sessionId}</span>
+                      <strong className="question-count">
+                        {session.rows.length} answers
+                      </strong>
+                      {session.submittedAt ? (
+                        <small>
+                          <CalendarClock size={14} aria-hidden="true" />
+                          {session.submittedAt}
+                        </small>
+                      ) : null}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <AnswerDetail session={selectedSessionGroup} />
+          </section>
         )}
       </section>
     </main>
@@ -283,7 +324,7 @@ export default function DashboardClient() {
 function Metric({
   label,
   value,
-  compact = false
+  compact = false,
 }: {
   label: string;
   value: string | number;
@@ -302,7 +343,10 @@ function AnswerDetail({ session }: { session: AnswerSession | null }) {
     return (
       <article className="answer-detail empty">
         <h2>Answer details</h2>
-        <p>Select a session to view every saved question and answer for that session ID.</p>
+        <p>
+          Select a session to view every saved question and answer for that
+          session ID.
+        </p>
       </article>
     );
   }
@@ -328,7 +372,9 @@ function AnswerDetail({ session }: { session: AnswerSession | null }) {
             </div>
             <pre>{formatValue(getAnswerValue(row))}</pre>
             <div className="answer-meta">
-              {getSubmittedText(row) ? <span>Saved: {getSubmittedText(row)}</span> : null}
+              {getSubmittedText(row) ? (
+                <span>Saved: {getSubmittedText(row)}</span>
+              ) : null}
               {row.prasc_opt_in !== null && row.prasc_opt_in !== undefined ? (
                 <span>PRASC opt-in: {String(row.prasc_opt_in)}</span>
               ) : null}
@@ -343,7 +389,7 @@ function AnswerDetail({ session }: { session: AnswerSession | null }) {
 function ContactTable({
   result,
   isLoading,
-  onRefresh
+  onRefresh,
 }: {
   result: ContactResult;
   isLoading: boolean;
@@ -358,7 +404,12 @@ function ContactTable({
           <h2>Contact submissions</h2>
           <p>Messages submitted through the website contact form.</p>
         </div>
-        <button className="icon-button" onClick={onRefresh} disabled={isLoading} title="Refresh contact messages">
+        <button
+          className="icon-button"
+          onClick={onRefresh}
+          disabled={isLoading}
+          title="Refresh contact messages"
+        >
           <RefreshCw size={18} aria-hidden="true" />
         </button>
       </div>
@@ -370,7 +421,9 @@ function ContactTable({
         </div>
       ) : null}
 
-      {isLoading ? <p className="empty-state">Loading contact messages...</p> : null}
+      {isLoading ? (
+        <p className="empty-state">Loading contact messages...</p>
+      ) : null}
       {!isLoading && !result.rows.length ? (
         <p className="empty-state">No contact messages found.</p>
       ) : null}
@@ -389,7 +442,9 @@ function ContactTable({
               {result.rows.map((row, index) => (
                 <tr key={getContactRowKey(row, index)}>
                   {columns.map((column) => (
-                    <td key={column}>{formatContactValue(row[column], column)}</td>
+                    <td key={column}>
+                      {formatContactValue(row[column], column)}
+                    </td>
                   ))}
                 </tr>
               ))}
@@ -408,16 +463,18 @@ function getContactColumns(rows: ContactRow[]) {
     "email",
     "phone",
     "subject",
-    "message"
+    "message",
   ];
   const keys = Array.from(new Set(rows.flatMap((row) => Object.keys(row))));
   const preferred = preferredColumns.filter((column) => keys.includes(column));
-  const trailing = ["created_at", "updated_at"].filter((column) => keys.includes(column));
+  const trailing = ["created_at", "updated_at"].filter((column) =>
+    keys.includes(column),
+  );
   const remaining = keys.filter(
     (column) =>
       !preferredColumns.includes(column) &&
       !trailing.includes(column) &&
-      column !== "id"
+      column !== "id",
   );
 
   return [...preferred, ...remaining, ...trailing];
@@ -442,6 +499,6 @@ function getSubmittedText(row: AnswerRow) {
 
   return new Intl.DateTimeFormat("en", {
     dateStyle: "medium",
-    timeStyle: "short"
+    timeStyle: "short",
   }).format(date);
 }

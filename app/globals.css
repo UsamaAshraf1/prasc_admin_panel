@@ -297,7 +297,9 @@ p {
   gap: 14px;
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
-
+.hide_metrics{
+  display: none;
+}
 .metric {
   background: var(--surface);
   border: 1px solid var(--line);
