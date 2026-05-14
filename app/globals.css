@@ -50,6 +50,9 @@ button {
   display: flex;
   min-height: 100vh;
   padding: 32px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 .login-panel {
@@ -60,6 +63,7 @@ button {
   max-width: 430px;
   padding: 32px;
   width: 100%;
+  
 }
 
 .brand-mark {
