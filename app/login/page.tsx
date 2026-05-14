@@ -43,6 +43,7 @@ export default function LoginPage() {
               onChange={(event) => setEmail(event.target.value)}
               autoComplete="username"
               placeholder="admin@prasc.com"
+              readOnly
             />
           </label>
           <label>
@@ -53,6 +54,7 @@ export default function LoginPage() {
               type="password"
               autoComplete="current-password"
               placeholder="admin123"
+              readOnly
             />
           </label>
           {error ? <p className="form-error">{error}</p> : null}
