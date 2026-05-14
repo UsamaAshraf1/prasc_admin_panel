@@ -2,57 +2,60 @@
 
 import { hasSupabaseConfig, supabase } from "@/lib/supabase";
 
-const AUTH_STORAGE_KEY = "prasc_admin_auth";
-
 export type AdminUser = {
   email: string;
-  mode: "supabase" | "dummy";
+  id: string;
 };
 
-export function getStoredUser(): AdminUser | null {
-  if (typeof window === "undefined") return null;
-
-  const raw = window.localStorage.getItem(AUTH_STORAGE_KEY);
-  if (!raw) return null;
-
-  try {
-    return JSON.parse(raw) as AdminUser;
-  } catch {
-    window.localStorage.removeItem(AUTH_STORAGE_KEY);
-    return null;
+function getAuthClient() {
+  if (!hasSupabaseConfig || !supabase) {
+    throw new Error("Supabase is not configured. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.");
   }
-}
 
-export function storeUser(user: AdminUser) {
-  window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(user));
-}
-
-export function clearStoredUser() {
-  window.localStorage.removeItem(AUTH_STORAGE_KEY);
+  return supabase;
 }
 
 export async function loginAdmin(email: string, password: string): Promise<AdminUser> {
   const trimmedEmail = email.trim();
-  const trimmedPassword = password.trim();
 
-  if (!trimmedEmail || !trimmedPassword) {
-    throw new Error("Enter any email/name and password to continue.");
+  if (!trimmedEmail || !password) {
+    throw new Error("Enter your admin email and password.");
   }
 
-  if (hasSupabaseConfig && supabase && trimmedEmail.includes("@")) {
-    const { error } = await supabase.auth.signInWithPassword({
-      email: trimmedEmail,
-      password: trimmedPassword
-    });
+  const client = getAuthClient();
+  const { data, error } = await client.auth.signInWithPassword({
+    email: trimmedEmail,
+    password
+  });
 
-    if (!error) {
-      const user = { email: trimmedEmail, mode: "supabase" as const };
-      storeUser(user);
-      return user;
-    }
+  if (error) {
+    throw new Error(error.message);
   }
 
-  const user = { email: trimmedEmail, mode: "dummy" as const };
-  storeUser(user);
-  return user;
+  if (!data.user?.email) {
+    throw new Error("Supabase did not return a valid user.");
+  }
+
+  return {
+    email: data.user.email,
+    id: data.user.id
+  };
+}
+
+export async function getCurrentUser(): Promise<AdminUser | null> {
+  if (!hasSupabaseConfig || !supabase) return null;
+
+  const { data, error } = await supabase.auth.getUser();
+  if (error || !data.user?.email) return null;
+
+  return {
+    email: data.user.email,
+    id: data.user.id
+  };
+}
+
+export async function logoutAdmin() {
+  if (hasSupabaseConfig && supabase) {
+    await supabase.auth.signOut();
+  }
 }

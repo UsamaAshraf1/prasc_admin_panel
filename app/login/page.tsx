@@ -7,8 +7,8 @@ import { loginAdmin } from "@/lib/auth";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("admin@prasc.com");
-  const [password, setPassword] = useState("admin123");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
@@ -37,13 +37,13 @@ export default function LoginPage() {
         <h1>Questionnaire dashboard</h1>
         <form onSubmit={handleSubmit} className="login-form">
           <label>
-            Email or username
+            Email
             <input
               value={email}
               onChange={(event) => setEmail(event.target.value)}
-              autoComplete="username"
-              placeholder="admin@prasc.com"
-              readOnly
+              // autoComplete="email"
+              placeholder="Enter Email"
+              
             />
           </label>
           <label>
@@ -52,9 +52,8 @@ export default function LoginPage() {
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               type="password"
-              autoComplete="current-password"
-              placeholder="admin123"
-              readOnly
+              // autoComplete="current-password"
+              placeholder="Enter password"
             />
           </label>
           {error ? <p className="form-error">{error}</p> : null}

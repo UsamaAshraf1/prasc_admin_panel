@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   AlertCircle,
   CalendarClock,
+  Contact,
   Database,
   LogOut,
   RefreshCw,
@@ -12,7 +13,7 @@ import {
   UserRound
 } from "lucide-react";
 import { categories } from "@/lib/categories";
-import { clearStoredUser, getStoredUser, type AdminUser } from "@/lib/auth";
+import { getCurrentUser, logoutAdmin, type AdminUser } from "@/lib/auth";
 import {
   fetchAllAnswers,
   getAnswerValue,
@@ -22,32 +23,60 @@ import {
   type AnswerSession,
   type CategoryResult
 } from "@/lib/answers";
+import {
+  contactTable,
+  fetchContactMessages,
+  formatContactHeader,
+  formatContactValue,
+  type ContactResult,
+  type ContactRow
+} from "@/lib/contact";
+
+const CONTACT_VIEW_ID = "contact-us";
 
 export default function DashboardClient() {
   const router = useRouter();
   const [user, setUser] = useState<AdminUser | null>(null);
   const [results, setResults] = useState<CategoryResult[]>([]);
+  const [contactResult, setContactResult] = useState<ContactResult>({ rows: [] });
   const [activeCategory, setActiveCategory] = useState(categories[0].id);
+  const [activeView, setActiveView] = useState(categories[0].id);
   const [selectedSession, setSelectedSession] = useState<string>("");
   const [query, setQuery] = useState("");
   const [isLoading, setIsLoading] = useState(true);
 
-  async function loadAnswers() {
+  async function loadDashboardData() {
     setIsLoading(true);
-    const nextResults = await fetchAllAnswers();
+    const [nextResults, nextContactResult] = await Promise.all([
+      fetchAllAnswers(),
+      fetchContactMessages()
+    ]);
     setResults(nextResults);
+    setContactResult(nextContactResult);
     setIsLoading(false);
   }
 
   useEffect(() => {
-    const storedUser = getStoredUser();
-    if (!storedUser) {
-      router.replace("/login");
-      return;
+    let isMounted = true;
+
+    async function initializeDashboard() {
+      const currentUser = await getCurrentUser();
+      if (!isMounted) return;
+
+      if (!currentUser) {
+        router.replace("/login");
+        return;
+      }
+
+      setUser(currentUser);
+      await loadDashboardData();
     }
 
-    setUser(storedUser);
-    void loadAnswers();
+    void initializeDashboard();
+
+    return () => {
+      isMounted = false;
+    };
   }, [router]);
 
   const activeResult = useMemo(
@@ -85,9 +114,10 @@ export default function DashboardClient() {
     0
   );
   const categoriesWithData = results.filter((result) => result.rows.length > 0).length;
+  const isContactView = activeView === CONTACT_VIEW_ID;
 
-  function handleLogout() {
-    clearStoredUser();
+  async function handleLogout() {
+    await logoutAdmin();
     router.replace("/login");
   }
 
@@ -118,8 +148,9 @@ export default function DashboardClient() {
             return (
               <button
                 key={category.id}
-                className={activeCategory === category.id ? "active" : ""}
+                className={!isContactView && activeCategory === category.id ? "active" : ""}
                 onClick={() => {
+                  setActiveView(category.id);
                   setActiveCategory(category.id);
                   setSelectedSession("");
                 }}
@@ -130,6 +161,17 @@ export default function DashboardClient() {
               </button>
             );
           })}
+          <button
+            className={isContactView ? "active" : ""}
+            onClick={() => {
+              setActiveView(CONTACT_VIEW_ID);
+              setSelectedSession("");
+            }}
+          >
+            <Contact size={18} aria-hidden="true" />
+            <span>Contact Us</span>
+            <strong>{contactResult.rows.length}</strong>
+          </button>
         </nav>
 
         <button className="logout-button" onClick={handleLogout}>
@@ -141,22 +183,38 @@ export default function DashboardClient() {
       <section className="dashboard">
         <header className="topbar">
           <div>
-            <p className="eyebrow">Questionnaire answers</p>
-            <h1>{activeResult?.category.label ?? "Dashboard"}</h1>
+            <p className="eyebrow">{isContactView ? "Contact messages" : "Questionnaire answers"}</p>
+            <h1>{isContactView ? "Contact Us" : activeResult?.category.label ?? "Dashboard"}</h1>
           </div>
           <div className="user-pill">
             <UserRound size={18} aria-hidden="true" />
             <span>{user.email}</span>
-            {/* <strong>{user.mode}</strong> */}
           </div>
         </header>
 
         <section className="metrics" aria-label="Dashboard metrics">
-          <Metric label="Total sessions" value={totalSessions} />
-          <Metric label="Total answers" value={totalResponses} />
-          <Metric label="Categories with data" value={categoriesWithData} />
+          {isContactView ? (
+            <>
+              <Metric label="Contact messages" value={contactResult.rows.length} />
+              <Metric label="Current table" value={contactTable} compact />
+              <Metric label="Status" value={contactResult.error ? "Needs attention" : "Loaded"} compact />
+            </>
+          ) : (
+            <>
+              <Metric label="Total sessions" value={totalSessions} />
+              <Metric label="Total answers" value={totalResponses} />
+              <Metric label="Categories with data" value={categoriesWithData} />
+            </>
+          )}
         </section>
 
+        {isContactView ? (
+          <ContactTable
+            result={contactResult}
+            isLoading={isLoading}
+            onRefresh={loadDashboardData}
+          />
+        ) : (
         <section className="workspace">
           <div className="responses-panel">
             <div className="panel-header">
@@ -164,7 +222,7 @@ export default function DashboardClient() {
                 <h2>Sessions</h2>
                 <p>{activeResult?.category.description}</p>
               </div>
-              <button className="icon-button" onClick={loadAnswers} disabled={isLoading} title="Refresh answers">
+              <button className="icon-button" onClick={loadDashboardData} disabled={isLoading} title="Refresh answers">
                 <RefreshCw size={18} aria-hidden="true" />
               </button>
             </div>
@@ -216,6 +274,7 @@ export default function DashboardClient() {
 
           <AnswerDetail session={selectedSessionGroup} />
         </section>
+        )}
       </section>
     </main>
   );
@@ -279,6 +338,93 @@ function AnswerDetail({ session }: { session: AnswerSession | null }) {
       </div>
     </article>
   );
+}
+
+function ContactTable({
+  result,
+  isLoading,
+  onRefresh
+}: {
+  result: ContactResult;
+  isLoading: boolean;
+  onRefresh: () => void;
+}) {
+  const columns = getContactColumns(result.rows);
+
+  return (
+    <section className="contact-panel">
+      <div className="panel-header">
+        <div>
+          <h2>Contact submissions</h2>
+          <p>Messages submitted through the website contact form.</p>
+        </div>
+        <button className="icon-button" onClick={onRefresh} disabled={isLoading} title="Refresh contact messages">
+          <RefreshCw size={18} aria-hidden="true" />
+        </button>
+      </div>
+
+      {result.error ? (
+        <div className="notice error">
+          <AlertCircle size={18} aria-hidden="true" />
+          <span>{result.error}</span>
+        </div>
+      ) : null}
+
+      {isLoading ? <p className="empty-state">Loading contact messages...</p> : null}
+      {!isLoading && !result.rows.length ? (
+        <p className="empty-state">No contact messages found.</p>
+      ) : null}
+
+      {result.rows.length ? (
+        <div className="table-wrap">
+          <table className="data-table">
+            <thead>
+              <tr>
+                {columns.map((column) => (
+                  <th key={column}>{formatContactHeader(column)}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {result.rows.map((row, index) => (
+                <tr key={getContactRowKey(row, index)}>
+                  {columns.map((column) => (
+                    <td key={column}>{formatContactValue(row[column], column)}</td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+function getContactColumns(rows: ContactRow[]) {
+  const preferredColumns = [
+    "name",
+    "full_name",
+    "email",
+    "phone",
+    "subject",
+    "message"
+  ];
+  const keys = Array.from(new Set(rows.flatMap((row) => Object.keys(row))));
+  const preferred = preferredColumns.filter((column) => keys.includes(column));
+  const trailing = ["created_at", "updated_at"].filter((column) => keys.includes(column));
+  const remaining = keys.filter(
+    (column) =>
+      !preferredColumns.includes(column) &&
+      !trailing.includes(column) &&
+      column !== "id"
+  );
+
+  return [...preferred, ...remaining, ...trailing];
+}
+
+function getContactRowKey(row: ContactRow, index: number) {
+  return String(row.id ?? row.created_at ?? index);
 }
 
 function formatValue(value: unknown) {
